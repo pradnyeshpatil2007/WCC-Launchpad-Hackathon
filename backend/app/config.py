@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     TTS_FALLBACK_VOICE: str = "en-US-AriaNeural"
     TTS_RATE: str = "+0%"
     TTS_CONCURRENCY: int = 3
-    TTS_MAX_RATE_BUMP_PERCENT: int = 10
+    TTS_MAX_RATE_BUMP_PERCENT: int = 15
 
     # --- SCRIPT CONSTRAINTS ---
     SCRIPT_MIN_WORDS: int = 120
