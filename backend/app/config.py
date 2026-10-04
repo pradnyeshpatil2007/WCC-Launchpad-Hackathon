@@ -100,6 +100,35 @@ class Settings(BaseSettings):
         val = secret.get_secret_value().strip()
         return bool(val and not val.startswith("PASTE_") and not val.startswith("SET_"))
 
+    @property
+    def project_root(self) -> Path:
+        return Path(__file__).resolve().parent.parent.parent
+
+    @property
+    def resolved_log_dir(self) -> Path:
+        p = Path(self.LOG_DIR)
+        return p if p.is_absolute() else (self.project_root / p).resolve()
+
+    @property
+    def resolved_app_log_dir(self) -> Path:
+        p = Path(self.APP_LOG_DIR)
+        return p if p.is_absolute() else (self.project_root / p).resolve()
+
+    @property
+    def resolved_media_dir(self) -> Path:
+        p = Path(self.MEDIA_DIR)
+        return p if p.is_absolute() else (self.project_root / p).resolve()
+
+    @property
+    def resolved_db_path(self) -> Path:
+        p = Path(self.DB_PATH)
+        return p if p.is_absolute() else (self.project_root / p).resolve()
+
+    @property
+    def resolved_font_dir(self) -> Path:
+        p = Path(self.FONT_DIR)
+        return p if p.is_absolute() else (self.project_root / p).resolve()
+
     def validate_preflight_paths_and_binaries(self, fail_fast_keys: bool = False) -> List[str]:
         """Validate system requirements: binaries, fonts, directories, and optionally keys."""
         errors: List[str] = []
@@ -110,7 +139,7 @@ class Settings(BaseSettings):
             errors.append("ffprobe executable not found on PATH.")
 
         # Font validation
-        font_path = Path(self.FONT_DIR).resolve()
+        font_path = self.resolved_font_dir
         if not font_path.exists():
             errors.append(f"Font directory does not exist: {font_path}")
         else:
@@ -119,8 +148,7 @@ class Settings(BaseSettings):
                 errors.append(f"No .ttf or .otf font files found in {font_path}")
 
         # Directory writability check
-        for dir_str in [self.LOG_DIR, self.APP_LOG_DIR, self.MEDIA_DIR, str(Path(self.DB_PATH).parent)]:
-            p = Path(dir_str).resolve()
+        for p in [self.resolved_log_dir, self.resolved_app_log_dir, self.resolved_media_dir, self.resolved_db_path.parent]:
             try:
                 p.mkdir(parents=True, exist_ok=True)
                 test_file = p / ".write_test"
@@ -141,8 +169,8 @@ class Settings(BaseSettings):
 _settings: Optional[Settings] = None
 
 
-def get_settings() -> Settings:
+def get_settings(reload: bool = False) -> Settings:
     global _settings
-    if _settings is None:
+    if _settings is None or reload:
         _settings = Settings()
     return _settings

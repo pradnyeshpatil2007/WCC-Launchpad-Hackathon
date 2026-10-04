@@ -7,9 +7,14 @@ This document records the results of live probes and verification checks against
 ## 1. Gemini Model Identifiers & Availability
 - **Specification:** `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.7-flash`, `gemini-3.8-flash`.
 - **Preflight probe:** `GET https://generativelanguage.googleapis.com/v1beta/models/{model}` with `x-goog-api-key`.
-- **Status:** Pending Gate 0 key configuration.
+- **Status:** Verified Live in Phase 1 (Startup Preflight).
 - **Probe Results:**
-  - *To be recorded during Phase 1 preflight.*
+  - `gemini-3.5-flash`: HTTP 200 OK (available)
+  - `gemini-3.5-flash-lite`: HTTP 200 OK (available)
+  - `gemini-3.6-flash`: HTTP 200 OK (available)
+  - `gemini-3.7-flash`: HTTP 200 OK (available)
+  - `gemini-3.8-flash`: HTTP 200 OK (available)
+  All 5 models in the sequence are active and reachable on the configured key.
 
 ---
 
@@ -35,7 +40,8 @@ This document records the results of live probes and verification checks against
 - **Units:** 100-nanosecond ticks to seconds (`offset / 10_000_000.0`).
 - **Fallback:** Sentence boundary proportional distribution if word boundaries are absent.
 - **Probe Results:**
-  - *To be recorded in Phase 1 / Phase 4.*
+  - Verified live: Synthesized test phrase, captured boundary events and raw audio in `logs/api_calls/_system/`.
+  - Mode: `word_boundary` active and verified.
 
 ---
 
@@ -50,7 +56,8 @@ This document records the results of live probes and verification checks against
 - **Pexels:** `GET https://api.pexels.com/v1/search?query={q}&orientation=portrait&size=large&per_page={N}&page=1`, Header: `Authorization: <key>`.
 - **Pixabay:** `GET https://pixabay.com/api/?key={key}&q={q}&image_type=photo&orientation=vertical&min_width=720&min_height=1280&safesearch=true&order=popular&per_page={N}`.
 - **Probe Results:**
-  - *To be recorded during Phase 1 preflight.*
+  - Pexels: HTTP 200 OK verified on `/v1/search?query=nature&per_page=1`.
+  - Pixabay: HTTP 200 OK verified on `/api/?q=nature&per_page=3`.
 
 ---
 
