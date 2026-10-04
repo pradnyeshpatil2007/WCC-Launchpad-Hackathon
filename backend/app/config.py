@@ -174,3 +174,12 @@ def get_settings(reload: bool = False) -> Settings:
     if _settings is None or reload:
         _settings = Settings()
     return _settings
+
+
+def get_job_storage_dir(job_id: str) -> Path:
+    """Return the absolute Path for a job's media/artifacts storage directory."""
+    settings = get_settings()
+    d = settings.resolved_media_dir / "jobs" / job_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
