@@ -18,3 +18,6 @@ def generate_ulid() -> str:
 def generate_call_id() -> str:
     """Generate a unique call ID for API audit logging."""
     return uuid.uuid4().hex[:16]
+
+
+new_job_id = generate_ulid

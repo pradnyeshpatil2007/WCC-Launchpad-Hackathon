@@ -9,7 +9,9 @@ from pathlib import Path
 BANNED_PATTERNS = [
     r"\bunittest\.mock\b",
     r"\bpytest[-_]mock\b",
-    r"\bresponses\b",
+    r"\bimport responses\b",
+    r"\bfrom responses\b",
+    r"\bresponses\.activate\b",
     r"\brespx\b",
     r"\bhttpretty\b",
     r"\bvcrpy\b",

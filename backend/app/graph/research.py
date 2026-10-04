@@ -29,6 +29,23 @@ class ResearchAgent:
         self.gateway = gateway or LLMGateway()
         self.settings = get_settings()
 
+    async def execute(
+        self,
+        prompt: str = "",
+        topic: str = "",
+        job_id: str = "_system",
+        tighten_feedback: Optional[str] = None,
+        script_feedback: Optional[str] = None,
+        event_cb: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> Script:
+        return await self.generate_script(
+            topic=prompt or topic,
+            job_id=job_id,
+            script_feedback=tighten_feedback or script_feedback,
+            event_callback=event_cb or event_callback,
+        )
+
     async def generate_script(
         self,
         topic: str,

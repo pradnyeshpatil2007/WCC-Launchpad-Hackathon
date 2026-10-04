@@ -377,11 +377,12 @@ class AssetAgent:
 
             if event_cb:
                 primary_source = scene_accepted_images[0].source
+                src_kind = "generated" if primary_source in ("pollinations", "generated") else "stock"
                 event_cb(
                     "scene.visual_ready",
                     {
                         "sceneIndex": s_idx,
-                        "source": primary_source,
+                        "source": src_kind,
                         "imageCount": len(scene_accepted_images),
                         "previewUrl": f"/api/media/{job_id}/scenes/{s_idx}/preview",
                     },
