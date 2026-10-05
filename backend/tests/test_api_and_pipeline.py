@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.config import get_settings
 from app.events.bus import get_event_bus
 from app.jobs.repo import JobRepo
 from app.main import app
@@ -61,7 +62,8 @@ async def test_create_and_get_job():
 @pytest.mark.asyncio
 async def test_sse_streaming_and_replay(test_event_bus, test_repo):
     """Verify SSE streaming, first snapshot event, live broadcast, and Last-Event-ID replay."""
-    job_id = "test_sse_replay_job"
+    import uuid
+    job_id = f"test_sse_replay_{uuid.uuid4().hex[:8]}"
     await test_repo.create_job(job_id=job_id, prompt="How do stars produce light?")
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -99,7 +101,13 @@ async def test_sse_streaming_and_replay(test_event_bus, test_repo):
 @pytest.mark.asyncio
 async def test_media_http_range_support():
     """Verify HTTP Range partial content delivery (206) for video seeking."""
-    job_id = "test_assembly_live"
+    job_id = "test_media_range_job"
+    settings = get_settings()
+    video_dir = settings.resolved_media_dir / "jobs" / job_id
+    video_dir.mkdir(parents=True, exist_ok=True)
+    video_path = video_dir / "video.mp4"
+    video_path.write_bytes(b"\x00" * 8192)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Request first 1000 bytes with Range header
         headers = {"Range": "bytes=0-999"}

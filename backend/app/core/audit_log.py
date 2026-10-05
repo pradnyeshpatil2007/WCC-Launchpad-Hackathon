@@ -367,3 +367,87 @@ class AuditLogger:
         else:
             if rec.outcome == "in_flight":
                 rec.finalize(outcome="success")
+
+
+def finalize_job_log(
+    job_id: str,
+    prompt: str,
+    status: str,
+    title: Optional[str] = None,
+    duration_sec: Optional[float] = None,
+    error: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Generate a clean summary.md in the job's log folder and append to logs/runs.jsonl for easy tracking."""
+    settings = get_settings()
+    job_log_dir = settings.resolved_log_dir / job_id
+    if not job_log_dir.exists():
+        return
+
+    index_file = job_log_dir / "index.jsonl"
+    calls: List[Dict[str, Any]] = []
+    if index_file.exists():
+        try:
+            for line in index_file.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    calls.append(json.loads(line))
+        except Exception:
+            pass
+
+    # Build human-readable summary.md
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    lines = [
+        f"# Job Run Summary: `{job_id}`",
+        f"",
+        f"- **Status**: `{status.upper()}`",
+        f"- **Prompt**: {prompt}",
+        f"- **Title**: {title or 'N/A'}",
+        f"- **Completed At**: {now_str}",
+        f"- **Video Duration**: {f'{duration_sec:.2f}s' if duration_sec else 'N/A'}",
+        f"- **Total External API Calls**: {len(calls)}",
+    ]
+
+    if error:
+        lines.extend([
+            f"",
+            f"### Error Information",
+            f"- **Stage**: `{error.get('stage')}`",
+            f"- **Code**: `{error.get('code')}`",
+            f"- **Message**: {error.get('message')}",
+        ])
+
+    lines.extend([
+        f"",
+        f"### API Calls Breakdown",
+        f"| # | Kind | Provider | Label | Model | Outcome | HTTP | Latency (ms) |",
+        f"|---|---|---|---|---|---|---|---|",
+    ])
+
+    for c in calls:
+        lines.append(
+            f"| {c.get('seq', 0):02d} | `{c.get('kind', '')}` | {c.get('provider', '')} | `{c.get('label', '')}` | {c.get('model') or '-'} | `{c.get('outcome', '')}` | {c.get('http_status') or '-'} | {c.get('latency_ms', 0):.0f} |"
+        )
+
+    summary_path = job_log_dir / "summary.md"
+    try:
+        summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    except Exception:
+        pass
+
+    # Append to logs/runs.jsonl
+    runs_file = settings.project_root / "logs" / "runs.jsonl"
+    runs_file.parent.mkdir(parents=True, exist_ok=True)
+    run_entry = {
+        "job_id": job_id,
+        "prompt": prompt,
+        "title": title,
+        "status": status,
+        "duration_sec": duration_sec,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "api_calls_count": len(calls),
+        "log_dir": f"logs/api_calls/{job_id}",
+    }
+    try:
+        with runs_file.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(run_entry) + "\n")
+    except Exception:
+        pass

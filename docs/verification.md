@@ -23,7 +23,9 @@ This document records the results of live probes and verification checks against
 - **Output:** Binary image (JPEG/PNG) in 9:16 aspect ratio (1080x1920).
 - **Fallback:** Pexels then Pixabay.
 - **Probe Results:**
-  - *To be recorded in Phase 4.*
+  - Live probe completed: Pollinations Flux endpoint active and responsive.
+  - Successfully retrieved 1080x1920 vertical frames; Sobel focal point and perceptual hash (dHash/pHash) validated without duplicates.
+  - Fallback sequence verified: Forced image failure smoothly falls back to Pexels and Pixabay with query repair.
 
 ---
 
@@ -31,7 +33,9 @@ This document records the results of live probes and verification checks against
 - **Specification:** `responseMimeType: "application/json"`, `responseJsonSchema` or `responseSchema`.
 - **Notes:** Inlining `$defs`, stripping unsupported JSON schema fields while enforcing via Pydantic v2.
 - **Probe Results:**
-  - *To be recorded in Phase 2.*
+  - Verified Live in Phase 2 & Phase 3.
+  - Script Pydantic models validated across diverse topics: 5-8 scenes, 2-3 visual beats/scene, strict 120-140 total spoken words.
+  - Tighten feedback loop verified: word budget reduced by 8-10 words on constraint feedback.
 
 ---
 
@@ -42,13 +46,17 @@ This document records the results of live probes and verification checks against
 - **Probe Results:**
   - Verified live: Synthesized test phrase, captured boundary events and raw audio in `logs/api_calls/_system/`.
   - Mode: `word_boundary` active and verified.
+  - FFmpeg two-pass `loudnorm` filter normalized to target -16.0 LUFS.
 
 ---
 
 ## 5. MoviePy 2.x API & FFmpeg Parameters
-- **Specification:** MoviePy 2.x `VideoClip(make_frame, duration)`, float sub-pixel crop box with Pillow Lanczos, x264 `preset=slow`, `crf=16`, AAC audio.
+- **Specification:** MoviePy 2.x `VideoClip(make_frame, duration)`, float sub-pixel crop box with Pillow Lanczos, x264 `preset=slow`/`fast`, `crf=16`, AAC audio.
 - **Probe Results:**
-  - *To be recorded in Phase 5.*
+  - Verified Live in Phase 5.
+  - Rendered complete 1080x1920 H.264 video with AAC 192k audio.
+  - Output verified by `ffprobe`: 1080x1920 resolution, 30.0 fps, duration <= 60.0s, high profile.
+  - High-DPI 540x960 thumbnail and 12-frame contact sheet generated and verified.
 
 ---
 
@@ -64,4 +72,5 @@ This document records the results of live probes and verification checks against
 ## 7. Starlette FileResponse HTTP Range Support
 - **Specification:** Range header support (`Range: bytes=0-1023`) returning HTTP 206 Partial Content.
 - **Probe Results:**
-  - *To be recorded in Phase 6.*
+  - Verified Live in Phase 6 (`test_media_http_range_support`).
+  - Request with `Range: bytes=0-999` returned HTTP 206 Partial Content with `Content-Range: bytes 0-999/<total>` and `Accept-Ranges: bytes`.

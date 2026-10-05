@@ -228,10 +228,11 @@ class PreRenderedCaptionPage:
         paste_x = 0
 
         if alpha_mult < 0.98:
-            # Apply alpha fade
+            # Apply alpha fade using precomputed LUT
             faded = variant_img.copy()
             r, g, b, a = faded.split()
-            a = a.point(lambda p: int(p * alpha_mult))
+            lut = [int(i * alpha_mult) for i in range(256)]
+            a = a.point(lut)
             faded.putalpha(a)
             return faded, paste_x, paste_y
 

@@ -165,30 +165,36 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
 
         {/* Action Buttons & Tabs */}
         <div className="flex items-center gap-2">
-          {isCompleted && (
-            <div className="flex rounded-xl bg-black/40 p-1 border border-white/5">
+          {isCompleted ? (
+            <div className="flex rounded-xl bg-black/40 p-1 border border-white/10 shadow-inner">
               <button
                 onClick={() => setActiveTab("player")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                   activeTab === "player"
-                    ? "bg-[#FED766] text-black"
+                    ? "bg-[#FED766] text-black shadow-md scale-100"
                     : "text-[#9CA3AF] hover:text-white"
                 }`}
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Player</span>
+                <span>Watch Short</span>
               </button>
               <button
                 onClick={() => setActiveTab("graph")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                   activeTab === "graph"
-                    ? "bg-[#FED766] text-black"
+                    ? "bg-[#FED766] text-black shadow-md scale-100"
                     : "text-[#9CA3AF] hover:text-white"
                 }`}
               >
                 <Film className="w-3.5 h-3.5" />
                 <span>Pipeline Graph</span>
               </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-[#9CA3AF]">
+              <Clock className="w-3.5 h-3.5 text-[#FED766] animate-spin" />
+              <span className="hidden sm:inline">Generating video (player unlocks on completion)</span>
+              <span className="sm:hidden">Generating...</span>
             </div>
           )}
 
@@ -206,22 +212,43 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
       </div>
 
       {/* Live Overall Progress Bar */}
-      <div className="w-full rounded-xl bg-[#161922] p-3 border border-white/5">
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="text-[#9CA3AF] font-medium flex items-center gap-2">
-            <span>Overall Pipeline Progress</span>
+      <div className="w-full rounded-2xl glass-panel p-4 border border-white/5 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="text-[#9CA3AF]">Overall Pipeline Progress</span>
             {isRunning && (
-              <span className="w-2 h-2 rounded-full bg-[#FED766] animate-pulse" />
+              <span className="flex items-center gap-1.5 text-[11px] text-[#FED766] font-normal">
+                <span className="w-2 h-2 rounded-full bg-[#FED766] animate-pulse" />
+                <span className="line-clamp-1">
+                  {runState?.currentStage === "research"
+                    ? "Drafting pedagogical script & scenes..."
+                    : runState?.currentStage === "asset"
+                    ? "Synthesizing voice narration & acquiring 9:16 visuals..."
+                    : runState?.currentStage === "assembly"
+                    ? "Rendering 1080x1920 video with smooth transitions & captions..."
+                    : "Processing pipeline..."}
+                </span>
+              </span>
             )}
-          </span>
-          <span className="font-mono text-white font-semibold">{progressPercent}%</span>
+            {isCompleted && (
+              <span className="text-[11px] text-[#10B981] font-normal flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Video generation complete</span>
+              </span>
+            )}
+          </div>
+          <span className="font-mono text-white font-bold text-sm">{progressPercent}%</span>
         </div>
-        <div className="w-full h-2 rounded-full bg-[#0E1015] overflow-hidden">
+        <div className="w-full h-2.5 rounded-full bg-[#0E1015] overflow-hidden p-0.5 border border-white/5">
           <div
-            className={`h-full transition-all duration-500 rounded-full ${
-              isRunning ? "bg-[#FED766] progress-animated" : isCompleted ? "bg-[#10B981]" : "bg-[#EF4444]"
+            className={`h-full transition-all duration-300 ease-out rounded-full ${
+              isRunning
+                ? "bg-gradient-to-r from-[#F59E0B] via-[#FED766] to-[#FDE047] progress-animated shadow-[0_0_12px_rgba(254,215,102,0.4)]"
+                : isCompleted
+                ? "bg-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                : "bg-[#EF4444]"
             }`}
-            style={{ width: `${progressPercent}%` }}
+            style={{ width: `${Math.max(2, progressPercent)}%` }}
           />
         </div>
       </div>
@@ -261,6 +288,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               selectedSceneIndex={selectedSceneIndex}
               onSelectScene={(idx) => setSelectedScene(idx)}
               sceneStartTimes={runState?.sceneStartTimes}
+              isCompleted={true}
             />
 
             <div className="h-[340px]">
@@ -281,6 +309,7 @@ export default function JobPage({ params }: { params: Promise<{ jobId: string }>
               selectedSceneIndex={selectedSceneIndex}
               onSelectScene={(idx) => setSelectedScene(idx)}
               sceneStartTimes={runState?.sceneStartTimes}
+              isCompleted={false}
             />
           </div>
 

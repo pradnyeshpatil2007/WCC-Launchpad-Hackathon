@@ -23,6 +23,15 @@ def get_media_duration(file_path: Path) -> float:
     return float(res.stdout.strip())
 
 
+def _run_ffmpeg_sync(cmd: List[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+async def run_ffmpeg_async(cmd: List[str]) -> subprocess.CompletedProcess:
+    """Run FFmpeg command in a worker thread, ensuring compatibility across all OS and event loop policies."""
+    return await asyncio.to_thread(_run_ffmpeg_sync, cmd)
+
+
 async def convert_and_trim_audio(
     input_mp3_path: Path,
     output_wav_path: Path,
@@ -42,20 +51,14 @@ async def convert_and_trim_audio(
         str(output_wav_path),
     ]
 
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
+    res = await run_ffmpeg_async(cmd)
+    if res.returncode != 0:
         # Fallback without silenceremove if filter fails
         fallback_cmd = [
             "ffmpeg", "-y", "-i", str(input_mp3_path),
             "-ar", "48000", "-ac", "1", str(output_wav_path),
         ]
-        p2 = await asyncio.create_subprocess_exec(*fallback_cmd)
-        await p2.communicate()
+        await run_ffmpeg_async(fallback_cmd)
 
     duration = get_media_duration(output_wav_path)
 
@@ -124,8 +127,7 @@ async def assemble_narration_audio(
         "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
         "-c", "pcm_s16le", str(tmp_concat),
     ]
-    proc_concat = await asyncio.create_subprocess_exec(*cmd_concat, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    await proc_concat.communicate()
+    await run_ffmpeg_async(cmd_concat)
 
     # Apply 2-pass EBU R128 loudnorm
     cmd_loudnorm = [
@@ -134,8 +136,7 @@ async def assemble_narration_audio(
         "-ar", "48000", "-ac", "2",
         str(output_narration_path),
     ]
-    proc_norm = await asyncio.create_subprocess_exec(*cmd_loudnorm, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    await proc_norm.communicate()
+    await run_ffmpeg_async(cmd_loudnorm)
 
     if tmp_concat.exists():
         tmp_concat.unlink()

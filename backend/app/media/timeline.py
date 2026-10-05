@@ -124,8 +124,12 @@ def build_timeline(
 
     all_presets = [
         MotionPreset.PUSH_IN,
+        MotionPreset.PAN_LEFT,
         MotionPreset.PULL_OUT,
+        MotionPreset.TILT_UP,
+        MotionPreset.PAN_RIGHT,
         MotionPreset.DRIFT_LEFT_UP,
+        MotionPreset.TILT_DOWN,
         MotionPreset.DRIFT_RIGHT_DOWN,
         MotionPreset.DIAGONAL_PUSH,
         MotionPreset.ARC_PAN,
@@ -133,8 +137,11 @@ def build_timeline(
 
     transition_cycle = [
         TransitionType.CROSSFADE,
+        TransitionType.ZOOM_DISSOLVE,
         TransitionType.SOFT_PUSH,
         TransitionType.DIP_LIGHT,
+        TransitionType.CROSSFADE,
+        TransitionType.ZOOM_DISSOLVE,
     ]
 
     for spec in raw_shot_specs:
@@ -191,7 +198,8 @@ def build_timeline(
             )
 
             trans_type = transition_cycle[shot_counter % len(transition_cycle)]
-            trans_sec = 0.50 if (sub_i == 0 and s_idx > 0) else 0.35
+            # 0.48s for inter-scene transitions, 0.38s for intra-scene cuts
+            trans_sec = 0.48 if (sub_i == 0 and s_idx > 0) else 0.38
 
             final_shots.append(
                 Shot(

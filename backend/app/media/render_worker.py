@@ -40,17 +40,32 @@ def run_render_worker(
 
         total_frames = int(math.ceil(timeline.duration_sec * timeline.fps))
 
-        # Pre-load master images for all shots
+        # Pre-load master images for all shots, normalized to 1.25x motion master (1350x2400)
+        master_w = int(timeline.width * 1.25)
+        master_h = int(timeline.height * 1.25)
         master_images: Dict[int, Image.Image] = {}
         for shot in timeline.shots:
             img_p = job_dir / shot.image_file
             if img_p.exists():
                 try:
-                    master_images[shot.shot_index] = Image.open(img_p).convert("RGB")
+                    with Image.open(img_p) as raw_im:
+                        raw_im = raw_im.convert("RGB")
+                        w, h = raw_im.size
+                        aspect = w / h
+                        target_aspect = 9.0 / 16.0
+                        if aspect > target_aspect:
+                            crop_w = int(h * target_aspect)
+                            left = (w - crop_w) // 2
+                            cropped = raw_im.crop((left, 0, left + crop_w, h))
+                        else:
+                            crop_h = int(w / target_aspect)
+                            top = (h - crop_h) // 2
+                            cropped = raw_im.crop((0, top, w, top + crop_h))
+                        master_images[shot.shot_index] = cropped.resize((master_w, master_h), Image.LANCZOS)
                 except Exception:
-                    master_images[shot.shot_index] = Image.new("RGB", (timeline.width, timeline.height), (20, 24, 30))
+                    master_images[shot.shot_index] = Image.new("RGB", (master_w, master_h), (20, 24, 30))
             else:
-                master_images[shot.shot_index] = Image.new("RGB", (timeline.width, timeline.height), (20, 24, 30))
+                master_images[shot.shot_index] = Image.new("RGB", (master_w, master_h), (20, 24, 30))
 
         # Precompute overlays and typography
         vignette_mask = create_global_vignette(timeline.width, timeline.height)
@@ -73,6 +88,8 @@ def run_render_worker(
         # Launch FFmpeg pipe with stderr directed to file to avoid OS pipe deadlock
         stderr_log_path = output_path.with_suffix(".ffmpeg.log")
         fade_out_start = max(0.0, timeline.duration_sec - 0.25)
+        from app.config import get_settings
+        settings = get_settings()
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",
@@ -84,8 +101,8 @@ def run_render_worker(
             "-i", "-",  # Video from stdin pipe
             "-i", str(audio_path),  # Audio input
             "-c:v", "libx264",
-            "-preset", "slow",
-            "-crf", "16",
+            "-preset", settings.VIDEO_PRESET,
+            "-crf", str(settings.VIDEO_CRF),
             "-profile:v", "high",
             "-level", "4.2",
             "-pix_fmt", "yuv420p",
@@ -135,31 +152,42 @@ def run_render_worker(
                 trans_start = cur_shot.end_sec - trans_sec
 
                 if cur_time >= trans_start:
-                    # Blending transition
-                    trans_p = max(0.0, min(1.0, (cur_time - trans_start) / trans_sec))
+                    # Blending transition with smooth S-curve
+                    raw_p = max(0.0, min(1.0, (cur_time - trans_start) / trans_sec))
+                    blend_p = raw_p * raw_p * (3.0 - 2.0 * raw_p)
+
                     next_master = master_images.get(next_shot.shot_index)
+                    # Continuous motion into transition
                     next_rel_t = cur_time - next_shot.start_sec
                     next_frame = render_shot_frame(next_master, next_shot, next_rel_t, (timeline.width, timeline.height))
 
                     if cur_shot.transition_type == TransitionType.CROSSFADE:
-                        base_frame = Image.blend(base_frame, next_frame, trans_p)
+                        base_frame = Image.blend(base_frame, next_frame, blend_p)
+                    elif cur_shot.transition_type == TransitionType.ZOOM_DISSOLVE:
+                        zoom_scale = 1.0 + (1.0 - blend_p) * 0.04
+                        w, h = timeline.width, timeline.height
+                        crop_w = int(w / zoom_scale)
+                        crop_h = int(h / zoom_scale)
+                        left = (w - crop_w) // 2
+                        top = (h - crop_h) // 2
+                        zoomed_next = next_frame.crop((left, top, left + crop_w, top + crop_h)).resize((w, h), Image.BILINEAR)
+                        base_frame = Image.blend(base_frame, zoomed_next, blend_p)
                     elif cur_shot.transition_type == TransitionType.SOFT_PUSH:
-                        # Soft push: next frame slides in while blending
-                        push_offset = int((1.0 - trans_p) * 60)
-                        blended = Image.blend(base_frame, next_frame, trans_p)
-                        base_frame = blended
+                        push_offset = int((1.0 - blend_p) * 40)
+                        w, h = timeline.width, timeline.height
+                        pushed_next = Image.new("RGB", (w, h), (0, 0, 0))
+                        pushed_next.paste(next_frame, (push_offset, 0))
+                        base_frame = Image.blend(base_frame, pushed_next, blend_p)
                     elif cur_shot.transition_type == TransitionType.DIP_LIGHT:
-                        # Brightness lift at midpoint
-                        lift = math.sin(trans_p * math.pi) * 0.15
-                        blended = Image.blend(base_frame, next_frame, trans_p)
-                        if lift > 0.02:
-                            r, g, b = blended.split()
-                            r = r.point(lambda p: min(255, int(p * (1.0 + lift))))
-                            g = g.point(lambda p: min(255, int(p * (1.0 + lift))))
-                            b = b.point(lambda p: min(255, int(p * (1.0 + lift))))
-                            base_frame = Image.merge("RGB", (r, g, b))
+                        lift = math.sin(blend_p * math.pi) * 0.12
+                        blended = Image.blend(base_frame, next_frame, blend_p)
+                        if lift > 0.01:
+                            from PIL import ImageEnhance
+                            base_frame = ImageEnhance.Brightness(blended).enhance(1.0 + lift)
                         else:
                             base_frame = blended
+                    else:
+                        base_frame = Image.blend(base_frame, next_frame, blend_p)
 
             # 2. Composite combined ambient overlays (vignette + caption scrim)
             base_frame.paste(combined_ambient, (0, 0), combined_ambient)

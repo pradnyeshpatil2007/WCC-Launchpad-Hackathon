@@ -171,9 +171,9 @@ export const useJobStore = create<JobStore>((set) => ({
               startedAt: new Date().toISOString(),
             };
           }
-          if (st === "research") rs.progress = 0.1;
-          if (st === "asset") rs.progress = 0.35;
-          if (st === "assembly") rs.progress = 0.7;
+          if (st === "research") rs.progress = Math.max(rs.progress, 0.08);
+          if (st === "asset") rs.progress = Math.max(rs.progress, 0.35);
+          if (st === "assembly") rs.progress = Math.max(rs.progress, 0.70);
           addFeedMessage(st, data.message || `Started ${st} stage`, "info");
           break;
         }
@@ -198,6 +198,9 @@ export const useJobStore = create<JobStore>((set) => ({
               endedAt: new Date().toISOString(),
             };
           }
+          if (st === "research") rs.progress = Math.max(rs.progress, 0.32);
+          if (st === "asset") rs.progress = Math.max(rs.progress, 0.70);
+          if (st === "assembly") rs.progress = Math.max(rs.progress, 0.99);
           addFeedMessage(st, data.message || `Completed ${st} stage`, "success");
           break;
         }
@@ -208,6 +211,11 @@ export const useJobStore = create<JobStore>((set) => ({
         }
 
         case "substep.progress": {
+          if (data.percent !== undefined && (data.node === "assembly" || rs.currentStage === "assembly")) {
+            // Map assembly frame rendering percent (0-100) across 70% -> 98%
+            const renderRatio = Math.max(0, Math.min(100, Number(data.percent))) / 100.0;
+            rs.progress = Math.max(rs.progress, 0.70 + renderRatio * 0.28);
+          }
           if (data.message) {
             addFeedMessage(data.node || rs.currentStage, data.message, "progress");
           }
@@ -221,6 +229,7 @@ export const useJobStore = create<JobStore>((set) => ({
         case "script.ready": {
           rs.title = data.title;
           rs.sceneCount = data.sceneCount;
+          rs.progress = Math.max(rs.progress, 0.25);
           // Pre-populate scene slots
           const newScenes: SceneData[] = [];
           for (let i = 0; i < data.sceneCount; i++) {
@@ -244,6 +253,9 @@ export const useJobStore = create<JobStore>((set) => ({
               ? { ...sc, audioDurationSec: data.durationSec }
               : sc
           );
+          const totalScenes = rs.sceneCount || rs.scenes.length || 6;
+          const voiceReadyCount = rs.scenes.filter((s) => s.audioDurationSec !== undefined).length;
+          rs.progress = Math.max(rs.progress, 0.35 + (voiceReadyCount / totalScenes) * 0.15);
           addFeedMessage(
             "voice",
             `Scene ${idx + 1} voice narration ready (${data.durationSec.toFixed(1)}s)`,
@@ -264,6 +276,9 @@ export const useJobStore = create<JobStore>((set) => ({
                 }
               : sc
           );
+          const totalScenes = rs.sceneCount || rs.scenes.length || 6;
+          const visualsReadyCount = rs.scenes.filter((s) => s.previewUrl !== undefined).length;
+          rs.progress = Math.max(rs.progress, 0.50 + (visualsReadyCount / totalScenes) * 0.20);
           addFeedMessage(
             "visuals",
             `Scene ${idx + 1} visual asset acquired (${data.source}, ${data.imageCount} image${data.imageCount > 1 ? "s" : ""})`,

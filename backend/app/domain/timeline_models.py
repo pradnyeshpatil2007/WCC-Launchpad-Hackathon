@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field
 class MotionPreset(str, Enum):
     PUSH_IN = "push_in"
     PULL_OUT = "pull_out"
+    PAN_LEFT = "pan_left"
+    PAN_RIGHT = "pan_right"
+    TILT_UP = "tilt_up"
+    TILT_DOWN = "tilt_down"
     DRIFT_LEFT_UP = "drift_left_up"
     DRIFT_RIGHT_DOWN = "drift_right_down"
     DIAGONAL_PUSH = "diagonal_push"
@@ -17,6 +21,7 @@ class MotionPreset(str, Enum):
 
 class TransitionType(str, Enum):
     CROSSFADE = "crossfade"
+    ZOOM_DISSOLVE = "zoom_dissolve"
     SOFT_PUSH = "soft_push"
     DIP_LIGHT = "dip_light"
 
@@ -30,12 +35,12 @@ class Shot(BaseModel):
     end_sec: float
     duration_sec: float
     motion_preset: MotionPreset
-    scale0: float = Field(ge=1.0, le=1.25)
-    scale1: float = Field(ge=1.0, le=1.25)
+    scale0: float = Field(ge=1.0, le=1.35)
+    scale1: float = Field(ge=1.0, le=1.35)
     center0: Tuple[float, float]  # (cx, cy) in normalized 0.0-1.0 coords
     center1: Tuple[float, float]  # (cx, cy) in normalized 0.0-1.0 coords
     transition_type: TransitionType = TransitionType.CROSSFADE
-    transition_sec: float = 0.35
+    transition_sec: float = 0.42
     is_reframe: bool = False
 
 

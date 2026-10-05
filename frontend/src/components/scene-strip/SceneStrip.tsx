@@ -9,6 +9,7 @@ interface SceneStripProps {
   selectedSceneIndex: number | null;
   onSelectScene: (index: number) => void;
   sceneStartTimes?: number[] | null;
+  isCompleted?: boolean;
 }
 
 export function SceneStrip({
@@ -16,6 +17,7 @@ export function SceneStrip({
   selectedSceneIndex,
   onSelectScene,
   sceneStartTimes,
+  isCompleted = false,
 }: SceneStripProps) {
   if (!scenes || scenes.length === 0) {
     return (
@@ -30,12 +32,12 @@ export function SceneStrip({
       <div className="flex items-center justify-between mb-3 px-1">
         <h3 className="text-xs font-semibold text-white tracking-wide uppercase flex items-center gap-2">
           <span>Scene Storyboard</span>
-          <span className="text-[10px] text-[#9CA3AF] bg-[#222836] px-2 py-0.5 rounded-full font-mono">
+          <span className="text-[10px] text-[#FED766] bg-[#FED766]/10 border border-[#FED766]/20 px-2 py-0.5 rounded-full font-mono">
             {scenes.length} beats
           </span>
         </h3>
         <span className="text-[11px] text-[#9CA3AF]">
-          Click scene to jump timeline
+          {isCompleted ? "Click scene to seek video" : "Live scene asset acquisition"}
         </span>
       </div>
 

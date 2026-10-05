@@ -4,6 +4,7 @@ import asyncio
 from typing import Any, Callable, Dict, Literal, Optional, TypedDict
 from langgraph.graph import END, StateGraph
 
+from app.core.audit_log import finalize_job_log
 from app.core.errors import StageError
 from app.domain.assets import VisualManifest, VoiceManifest
 from app.domain.script import Script
@@ -138,11 +139,14 @@ class AutoShortsPipeline:
             }
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             attempts = state.get("repair_attempts", 0) + 1
             code = getattr(e, "code", "RESEARCH_FAILED")
+            msg = str(e) or repr(e) or "Research stage failed"
             return {
                 "repair_attempts": attempts,
-                "error": {"stage": "research", "code": code, "message": str(e), "retryable": attempts < 3},
+                "error": {"stage": "research", "code": code, "message": msg, "retryable": attempts < 3},
             }
 
     async def _asset_node(self, state: PipelineState) -> Dict[str, Any]:
@@ -191,7 +195,10 @@ class AutoShortsPipeline:
             return {"error": {"stage": "asset", "code": e.code, "message": e.message, "retryable": e.retryable}}
 
         except Exception as e:
-            return {"error": {"stage": "asset", "code": "ASSET_FAILED", "message": str(e), "retryable": False}}
+            import traceback
+            traceback.print_exc()
+            msg = str(e) or repr(e) or "Asset stage failed"
+            return {"error": {"stage": "asset", "code": "ASSET_FAILED", "message": msg, "retryable": False}}
 
     async def _assembly_node(self, state: PipelineState) -> Dict[str, Any]:
         job_id = state["job_id"]
@@ -232,7 +239,10 @@ class AutoShortsPipeline:
         except StageError as e:
             return {"error": {"stage": "assembly", "code": e.code, "message": e.message, "retryable": e.retryable}}
         except Exception as e:
-            return {"error": {"stage": "assembly", "code": "ASSEMBLY_FAILED", "message": str(e), "retryable": False}}
+            import traceback
+            traceback.print_exc()
+            msg = str(e) or repr(e) or "Assembly stage failed"
+            return {"error": {"stage": "assembly", "code": "ASSEMBLY_FAILED", "message": msg, "retryable": False}}
 
     async def _complete_node(self, state: PipelineState) -> Dict[str, Any]:
         job_id = state["job_id"]
@@ -270,6 +280,18 @@ class AutoShortsPipeline:
                 "sceneStartTimes": starts,
             },
         )
+
+        script = state.get("script")
+        title = script.title if script else None
+        prompt = state.get("prompt", "")
+        finalize_job_log(
+            job_id=job_id,
+            prompt=prompt,
+            status="completed",
+            title=title,
+            duration_sec=dur_sec,
+        )
+
         return {}
 
     async def _failed_node(self, state: PipelineState) -> Dict[str, Any]:
@@ -293,6 +315,18 @@ class AutoShortsPipeline:
                 "retryable": err.get("retryable", False),
             },
         )
+
+        script = state.get("script")
+        title = script.title if script else None
+        prompt = state.get("prompt", "")
+        finalize_job_log(
+            job_id=job_id,
+            prompt=prompt,
+            status="failed",
+            title=title,
+            error=err,
+        )
+
         return {}
 
     # --- ROUTING RULES ---

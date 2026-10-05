@@ -17,6 +17,12 @@ IGNORE_DIRS = {
     ".pytest_cache",
     ".venv",
     "venv",
+    "storage",
+    "artifacts",
+}
+
+BINARY_EXTENSIONS = {
+    ".mp4", ".jpg", ".jpeg", ".png", ".webp", ".wav", ".mp3", ".aac", ".ts", ".tar", ".zip", ".gz"
 }
 
 IGNORE_FILES = {
@@ -55,7 +61,7 @@ def scan_files(root_path: Path, configured_keys: list[str]) -> list[str]:
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
         
         for f in files:
-            if f in IGNORE_FILES or f.endswith((".env", ".tmp", ".log.swp")):
+            if f in IGNORE_FILES or f.endswith((".env", ".tmp", ".log.swp")) or any(f.lower().endswith(ext) for ext in BINARY_EXTENSIONS):
                 continue
             
             file_path = Path(root) / f

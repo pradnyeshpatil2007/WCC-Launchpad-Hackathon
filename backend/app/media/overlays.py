@@ -146,7 +146,8 @@ class EmphasisBadgeRenderer:
                 if alpha < 0.98:
                     faded = img_to_paste.copy()
                     r, g, b, a = faded.split()
-                    a = a.point(lambda p: int(p * alpha))
+                    lut = [int(i * alpha) for i in range(256)]
+                    a = a.point(lut)
                     faded.putalpha(a)
                     img_to_paste = faded
 
