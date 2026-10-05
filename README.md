@@ -33,9 +33,14 @@ The companion **Next.js 15** frontend streams the pipeline live via **Server-Sen
 - **Research & Script Agent**: Conducts conceptual research and authors a pedagogically structured 5-scene script within a strict 120–140 word budget. Includes automated script-tightening loops if duration targets are exceeded.
 - **Parallel Asset Sourcing Agent**: Simultaneously dispatches narration and visual retrieval branches using `asyncio.gather`:
   - **Voice Narration**: Microsoft Edge-TTS with millisecond word boundary timestamps, followed by two-pass EBU R128 (`-16.0 LUFS`) loudnorm audio processing.
-  - **Visual Sourcing**: Generates high-resolution 9:16 visuals via Pollinations Flux, automatically falling back to Pexels and Pixabay stock video/photography with query repair and perceptual hash de-duplication.
+  - **Multi-Tier Visual Sourcing**:
+    - **AI Image Generation**: Free public Pollinations gateway with sequential multi-model failover (NVIDIA/MIT Sana 4K model $\rightarrow$ default $\rightarrow$ Turbo).
+    - **Pexels 9:16 Portrait Video**: Queries curated vertical stock footage with automated physical-noun query sanitization (stripping abstract words and human portraits).
+    - **Stock Photography Fallback**: Pexels Photos $\rightarrow$ Pixabay Photos $\rightarrow$ Query Repair.
+  - **Multimodal Visual Verifier (Gemini Vision)**: `gemini-3.5-flash-lite` audits candidate visuals against spoken narration and topic concepts in real time, discarding selfies, watermarks, and mismatched footage before rendering.
 - **Assembly & Compositing Engine**: Frame-accurate sub-pixel rendering engine combining:
   - **8 Cinematic Motion Presets**: Alternating `PAN_LEFT`, `PAN_RIGHT`, `TILT_UP`, `TILT_DOWN`, `DIAGONAL_PUSH`, `ARC_PAN`, `PUSH_IN`, and `PULL_OUT` evaluated with smooth quintic ease-in-out (`6t⁵ - 15t⁴ + 10t³`) curves.
+  - **Picture-in-Picture (PiP) Inset Callouts**: Contextual floating cards with rounded corners, amber borders (`#FED766`), drop shadow, pill badges, and spring pop-in / fade-out animations highlighting comparative metrics and details.
   - **Natural S-Curve Transitions**: Seamless clip blending with `CROSSFADE`, `ZOOM_DISSOLVE`, `SOFT_PUSH`, and `DIP_LIGHT` featuring active velocity glides into transitions (no freeze frames).
   - **Word-Level Pop Captions**: High-DPI Pillow text rasterization with dynamic word-by-word karaoke highlighting, outline strokes, and chapter pill badges.
   - **Studio Master Quality**: Subprocess FFmpeg pipe encoding directly to H.264 CRF 16 with 48 kHz AAC audio, verified via `ffprobe`.
@@ -63,12 +68,17 @@ User Topic Prompt (e.g., "Why is the Mariana Trench so deep?")
   │
   ├─► Node 2: Asset Agent (asyncio.gather parallel branches)
   │     ├─► Voice Branch: Edge-TTS word-timing synthesis + 2-pass Loudnorm (-16.0 LUFS)
-  │     └─► Visuals Branch: Pollinations.ai Flux (9:16) → Pexels → Pixabay → Query Repair
+  │     └─► Visuals Branch: Multi-Tier Visual Retrieval + Gemini Multimodal Verification
+  │           ├─► Tier 1: Pollinations AI Generation (Sana / Default / Turbo)
+  │           ├─► Tier 2: Pexels 9:16 Portrait Video (Sanitized Physical Queries)
+  │           ├─► Tier 3: Pexels Photos → Pixabay Photos
+  │           ├─► Visual Verifier: Gemini 3.5 Flash Lite audits candidate vs. spoken narration
   │           └─► PIL validation, Sobel saliency centroid, perceptual hash de-duplication
   │
   └─► Node 3: Assembly Agent (MoviePy + Subprocess FFmpeg Pipe)
         ├─► TimelineBuilder (word-boundary synchronized shot timing)
         ├─► Motion Engine (Smoothstep Ken Burns, sub-pixel Lanczos, organic drift)
+        ├─► Picture-in-Picture (PiP) Inset Callout Overlays (Glassmorphic cards + badges)
         ├─► Natural Transitions (S-curve smoothstep, zoom dissolve, light blooming)
         ├─► High-DPI Pillow Captions (2-4 word animated pop karaoke highlighting)
         ├─► Overlays (Vignette, bottom readability scrim, chapter pill, progress bar)
@@ -81,7 +91,6 @@ Next.js 15 Frontend
   ├─► Interactive React Flow Node Graph (active pulses, packets, sub-nodes)
   ├─► Live Humanized Activity Feed (zero internal secrets or raw payloads)
   ├─► Scene Strip & Media Preview
-  └─► Video Library & 9:16 Player (HTTP Range 206 seeking & MP4 download)
 ```
 
 ---

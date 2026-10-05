@@ -8,9 +8,9 @@ import subprocess
 import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple
-from PIL import Image
+from PIL import Image, ImageDraw, ImageOps
 
-from app.domain.timeline_models import Shot, Timeline, TransitionType
+from app.domain.timeline_models import InsetCallout, Shot, Timeline, TransitionType
 from app.media.captions import PreRenderedCaptionPage, get_caption_font
 from app.media.motion import render_shot_frame
 from app.media.overlays import (
@@ -84,6 +84,31 @@ def run_render_worker(
 
         # Pre-render emphasis badges
         badge_renderer = EmphasisBadgeRenderer(timeline.emphasis_overlays, width=timeline.width)
+
+        # Pre-render Inset Callout cards (Picture-in-Picture context stickers)
+        prerendered_callouts: List[Tuple[InsetCallout, Image.Image]] = []
+        for callout in getattr(timeline, "inset_callouts", []):
+            c_path = job_dir / callout.image_file
+            if c_path.exists():
+                try:
+                    with Image.open(c_path) as raw_c:
+                        raw_c = raw_c.convert("RGBA")
+                        fitted_c = ImageOps.fit(raw_c, (callout.width - 16, callout.height - 16), method=Image.Resampling.LANCZOS)
+                    card = Image.new("RGBA", (callout.width, callout.height), (0, 0, 0, 0))
+                    draw_c = ImageDraw.Draw(card)
+                    draw_c.rounded_rectangle([(0, 0), (callout.width - 1, callout.height - 1)], radius=18, fill=(10, 16, 28, 240), outline=(254, 215, 102, 230), width=3)
+                    mask_c = Image.new("L", (callout.width - 16, callout.height - 16), 0)
+                    mask_draw = ImageDraw.Draw(mask_c)
+                    mask_draw.rounded_rectangle([(0, 0), (callout.width - 17, callout.height - 17)], radius=12, fill=255)
+                    card.paste(fitted_c, (8, 8), mask_c)
+                    # Pill label
+                    pill_text = callout.title[:20]
+                    p_w = max(130, len(pill_text) * 12 + 20)
+                    draw_c.rounded_rectangle([(callout.width - p_w - 18, 16), (callout.width - 18, 50)], radius=10, fill=(15, 23, 42, 230), outline=(254, 215, 102, 240), width=2)
+                    draw_c.text((callout.width - p_w - 6, 22), pill_text, fill=(254, 215, 102, 255))
+                    prerendered_callouts.append((callout, card))
+                except Exception:
+                    pass
 
         # Launch FFmpeg pipe with stderr directed to file to avoid OS pipe deadlock
         stderr_log_path = output_path.with_suffix(".ffmpeg.log")
@@ -198,7 +223,21 @@ def run_render_worker(
                 badge_img, bx, by = badge_res
                 base_frame.paste(badge_img, (bx, by), badge_img)
 
-            # 4. Composite dynamic pop caption page with active highlight
+            # 4. Composite active Inset Callout (PiP context card)
+            for c_info, c_card in prerendered_callouts:
+                if c_info.start_sec <= cur_time <= c_info.end_sec:
+                    t_rel = cur_time - c_info.start_sec
+                    rem = c_info.end_sec - cur_time
+                    card_alpha = min(1.0, max(0.0, min(t_rel / 0.22, rem / 0.25)))
+                    if card_alpha < 0.98:
+                        faded_c = c_card.copy()
+                        faded_c.putalpha(faded_c.getchannel("A").point(lambda p: int(p * card_alpha)))
+                        base_frame.paste(faded_c, (c_info.x, c_info.y), faded_c)
+                    else:
+                        base_frame.paste(c_card, (c_info.x, c_info.y), c_card)
+                    break
+
+            # 5. Composite dynamic pop caption page with active highlight
             for page in prerendered_pages:
                 cap_res = page.get_frame_overlay(cur_time)
                 if cap_res:

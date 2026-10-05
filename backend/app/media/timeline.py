@@ -10,6 +10,7 @@ from app.domain.script import Script
 from app.domain.timeline_models import (
     CaptionPage,
     EmphasisOverlay,
+    InsetCallout,
     MotionPreset,
     Shot,
     Timeline,
@@ -231,12 +232,13 @@ def build_timeline(
 
     caption_pages = build_caption_pages_from_timings(caption_input)
 
-    # 4. Emphasis overlays
+    # 4. Emphasis overlays and Inset Callouts
     emphasis_overlays: List[EmphasisOverlay] = []
+    inset_callouts: List[InsetCallout] = []
+
     for s_idx, scene in enumerate(script.scenes):
         s_start = scene_starts[s_idx]
         s_dur = voice.scenes[s_idx].duration_sec
-        # Display from scene_start + 0.15s for min(2.2s, scene_dur - 0.4s)
         ov_start = round(s_start + 0.15, 3)
         ov_dur = min(2.2, max(0.8, s_dur - 0.4))
         ov_end = round(ov_start + ov_dur, 3)
@@ -250,6 +252,29 @@ def build_timeline(
             )
         )
 
+        # Build Inset Callout if scene has extra visual assets and duration allows
+        imgs = scene_images.get(s_idx, [])
+        if len(imgs) >= 2 and s_dur >= 5.5:
+            callout_img = imgs[1]
+            c_start = round(s_start + 2.4, 3)
+            c_dur = min(2.8, s_dur - 3.0)
+            if c_dur >= 1.5:
+                c_end = round(c_start + c_dur, 3)
+                inset_callouts.append(
+                    InsetCallout(
+                        callout_id=f"pip_s{s_idx:02d}",
+                        scene_index=s_idx,
+                        image_file=callout_img.file,
+                        title=scene.emphasis_text.upper(),
+                        start_sec=c_start,
+                        end_sec=c_end,
+                        x=140,
+                        y=420,
+                        width=800,
+                        height=460,
+                    )
+                )
+
     total_duration = round(voice.total_sec + tail, 3)
 
     return Timeline(
@@ -262,6 +287,7 @@ def build_timeline(
         shots=final_shots,
         caption_pages=caption_pages,
         emphasis_overlays=emphasis_overlays,
+        inset_callouts=inset_callouts,
         narration_audio_file="audio/narration.wav",
         seed=seed_from_job(job_id, 0),
     )

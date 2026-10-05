@@ -66,6 +66,19 @@ class EmphasisOverlay(BaseModel):
     end_sec: float
 
 
+class InsetCallout(BaseModel):
+    callout_id: str
+    scene_index: int
+    image_file: str  # relative path within job storage
+    title: str
+    start_sec: float
+    end_sec: float
+    x: int = 120
+    y: int = 440
+    width: int = 840
+    height: int = 480
+
+
 class Timeline(BaseModel):
     duration_sec: float
     fps: int = 30
@@ -76,5 +89,6 @@ class Timeline(BaseModel):
     shots: List[Shot]
     caption_pages: List[CaptionPage]
     emphasis_overlays: List[EmphasisOverlay]
+    inset_callouts: List[InsetCallout] = Field(default_factory=list)
     narration_audio_file: str
     seed: int

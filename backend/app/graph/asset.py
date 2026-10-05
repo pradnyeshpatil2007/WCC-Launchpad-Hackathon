@@ -25,6 +25,7 @@ from app.media.imaging import evaluate_and_process_image, generate_preview
 from app.providers.image_gen import PollinationsImageGen
 from app.providers.stock import UnifiedStockService
 from app.providers.tts import LoggedEdgeTTS
+from app.providers.visual_verifier import VisualVerifier
 
 
 class AssetAgent:
@@ -38,6 +39,7 @@ class AssetAgent:
         self.gateway = gateway or LLMGateway(self.http_client)
         self.image_gen = PollinationsImageGen(self.http_client)
         self.stock_service = UnifiedStockService(self.http_client)
+        self.visual_verifier = VisualVerifier()
         self._tts_semaphore = asyncio.Semaphore(self.settings.TTS_CONCURRENCY)
         self._img_semaphore = asyncio.Semaphore(self.settings.IMAGE_GEN_CONCURRENCY)
 
@@ -243,32 +245,39 @@ class AssetAgent:
                             attempt=1,
                         )
                         if gen_bytes:
-                            eval_res = evaluate_and_process_image(
-                                raw_bytes=gen_bytes,
-                                source="generated",
-                                existing_phashes=existing_phashes,
+                            v_res = await self.visual_verifier.verify_image(
+                                image_bytes=gen_bytes,
+                                narration=beat.narration,
+                                concept=beat.image_prompt,
+                                job_id=job_id,
                             )
-                            if eval_res.accepted and eval_res.image is not None:
-                                img_filename = f"{beat_key}.jpg"
-                                img_path = images_dir / img_filename
-                                eval_res.image.save(img_path, "JPEG", quality=92)
-                                existing_phashes.append(eval_res.phash)
-
-                                # Create 270x480 preview
-                                prev_path = previews_dir / f"s{s_idx:02d}.jpg"
-                                generate_preview(eval_res.image, prev_path)
-
-                                accepted_img = AcceptedImage(
-                                    beat_key=beat_key,
-                                    file=str(img_path.relative_to(storage_dir)),
-                                    width=eval_res.image.width,
-                                    height=eval_res.image.height,
+                            if v_res.verdict == "ACCEPT":
+                                eval_res = evaluate_and_process_image(
+                                    raw_bytes=gen_bytes,
                                     source="generated",
-                                    source_ref={"model": "pollinations-flux"},
-                                    focal=eval_res.focal,
-                                    phash=eval_res.phash,
-                                    preview_file=str(prev_path.relative_to(storage_dir)),
+                                    existing_phashes=existing_phashes,
                                 )
+                                if eval_res.accepted and eval_res.image is not None:
+                                    img_filename = f"{beat_key}.jpg"
+                                    img_path = images_dir / img_filename
+                                    eval_res.image.save(img_path, "JPEG", quality=92)
+                                    existing_phashes.append(eval_res.phash)
+
+                                    # Create 270x480 preview
+                                    prev_path = previews_dir / f"s{s_idx:02d}.jpg"
+                                    generate_preview(eval_res.image, prev_path)
+
+                                    accepted_img = AcceptedImage(
+                                        beat_key=beat_key,
+                                        file=str(img_path.relative_to(storage_dir)),
+                                        width=eval_res.image.width,
+                                        height=eval_res.image.height,
+                                        source="generated",
+                                        source_ref={"model": "pollinations-ai", "subject": v_res.detected_subject},
+                                        focal=eval_res.focal,
+                                        phash=eval_res.phash,
+                                        preview_file=str(prev_path.relative_to(storage_dir)),
+                                    )
 
                 # 2. Fallback to Stock (Pexels -> Pixabay)
                 if accepted_img is None and not force_stock_failure:
@@ -304,6 +313,12 @@ class AssetAgent:
 
                     if stock_res is not None:
                         raw_bytes, cand_meta, eval_res = stock_res
+                        v_res = await self.visual_verifier.verify_image(
+                            image_bytes=raw_bytes,
+                            narration=beat.narration,
+                            concept=beat.image_prompt,
+                            job_id=job_id,
+                        )
                         img_filename = f"{beat_key}.jpg"
                         img_path = images_dir / img_filename
                         eval_res.image.save(img_path, "JPEG", quality=92)
@@ -319,7 +334,7 @@ class AssetAgent:
                             width=eval_res.image.width,
                             height=eval_res.image.height,
                             source=cand_meta["provider"],
-                            source_ref=cand_meta,
+                            source_ref={**cand_meta, "subject": v_res.detected_subject},
                             focal=eval_res.focal,
                             phash=eval_res.phash,
                             preview_file=str(prev_path.relative_to(storage_dir)),
