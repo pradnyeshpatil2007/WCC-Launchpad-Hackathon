@@ -107,11 +107,6 @@ class AssemblyAgent:
 
         if event_cb:
             event_cb("substep.completed", {"node": "assembly", "durationMs": 0})
-            event_cb("media.video_ready", {
-                "videoUrl": f"/api/media/{job_id}/video.mp4",
-                "thumbnailUrl": f"/api/media/{job_id}/thumbnail.jpg",
-                "durationSec": probe_meta["duration_sec"],
-            })
 
         return assembly_result
 

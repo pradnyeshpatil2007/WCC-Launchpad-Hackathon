@@ -1,21 +1,64 @@
 # AutoShorts: Autonomous Multi-Agent Educational Video Generation
 
-> **WCC Launchpad 30 — Agentic AI Track**  
-> Turn any educational concept into a polished, narrated, animated 60-second vertical video (9:16) with zero manual human editing.
+<div align="center">
+
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue.svg?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-orange.svg)](https://langchain-ai.github.io/langgraph/)
+[![Next.js](https://img.shields.io/badge/Next.js-15%20(App%20Router)-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![FFmpeg](https://img.shields.io/badge/FFmpeg-x264%20CRF%2016-green.svg?logo=ffmpeg&logoColor=white)](https://ffmpeg.org)
+[![Zero Mocks](https://img.shields.io/badge/Policy-Zero%20Mocks%20Enforced-critical.svg)](#key-guardrails--zero-mock-policy)
+[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
+
+**WCC Launchpad 30 — Agentic AI Track**  
+*Transform any educational concept into a fully edited, narrated, subtitled 60-second vertical video (9:16) with zero manual human editing.*
+
+[Features](#features) • [Architecture](#system-architecture) • [Getting Started](#quick-start-guide) • [API & SSE](#rest--sse-api-contract) • [Testing](#verification--test-suite) • [Judge Walkthrough](#judge-demo-walkthrough)
+
+</div>
 
 ---
 
-## 1. System Architecture
+## 🌟 Overview
+
+**AutoShorts** is an autonomous multi-agent media production engine. Given a single topic prompt (e.g. *"Why is the Mariana Trench so deep?"* or *"How do quantum computers factor prime numbers?"*), an ensemble of specialized AI agents collaboratively researches, writes, narrates, sources, edits, and renders a broadcast-quality 60-second vertical video in under 3 minutes.
+
+The companion **Next.js 15** frontend streams the pipeline live via **Server-Sent Events (SSE)**, mapping agent state machines onto an interactive **React Flow** graph with real-time token feeds, audio spectrogram previews, and frame-by-frame progress indicators.
+
+---
+
+## 🚀 Key Features
+
+### 🧠 Autonomous Multi-Agent Pipeline (LangGraph)
+- **Research & Script Agent**: Conducts conceptual research and authors a pedagogically structured 5-scene script within a strict 120–140 word budget. Includes automated script-tightening loops if duration targets are exceeded.
+- **Parallel Asset Sourcing Agent**: Simultaneously dispatches narration and visual retrieval branches using `asyncio.gather`:
+  - **Voice Narration**: Microsoft Edge-TTS with millisecond word boundary timestamps, followed by two-pass EBU R128 (`-16.0 LUFS`) loudnorm audio processing.
+  - **Visual Sourcing**: Generates high-resolution 9:16 visuals via Pollinations Flux, automatically falling back to Pexels and Pixabay stock video/photography with query repair and perceptual hash de-duplication.
+- **Assembly & Compositing Engine**: Frame-accurate sub-pixel rendering engine combining:
+  - **8 Cinematic Motion Presets**: Alternating `PAN_LEFT`, `PAN_RIGHT`, `TILT_UP`, `TILT_DOWN`, `DIAGONAL_PUSH`, `ARC_PAN`, `PUSH_IN`, and `PULL_OUT` evaluated with smooth quintic ease-in-out (`6t⁵ - 15t⁴ + 10t³`) curves.
+  - **Natural S-Curve Transitions**: Seamless clip blending with `CROSSFADE`, `ZOOM_DISSOLVE`, `SOFT_PUSH`, and `DIP_LIGHT` featuring active velocity glides into transitions (no freeze frames).
+  - **Word-Level Pop Captions**: High-DPI Pillow text rasterization with dynamic word-by-word karaoke highlighting, outline strokes, and chapter pill badges.
+  - **Studio Master Quality**: Subprocess FFmpeg pipe encoding directly to H.264 CRF 16 with 48 kHz AAC audio, verified via `ffprobe`.
+
+### 🛡️ Uncompromising Reliability & Guardrails
+- **100% Real Endpoints (Zero-Mock Policy)**: Zero fake mocks, fixtures, or canned files across the entire codebase. Every agent and test connects to real services.
+- **Fail-Closed Complete Audit Logging**: Every single external API request, response, latency metric, and HTTP status code is recorded under `logs/api_calls/<job_id>/` with sanitized credentials and summarized in `logs/runs.jsonl`.
+- **Secret Leak Guards**: Automatic regex sanitization strips API keys, local filesystem paths, and hostnames before any event is published over SSE or REST.
+- **Player Lock Protection**: The video player is strictly locked during rendering and unlocks automatically with partial HTTP 206 Range seeking upon 100% completion.
+
+---
+
+## 🏗️ System Architecture
 
 ```
-User Topic Prompt (3-500 chars)
+User Topic Prompt (e.g., "Why is the Mariana Trench so deep?")
   │
   ▼
 [FastAPI Backend / JobRunner (Concurrency=2)]
   │
   ├─► Node 1: Research Agent (LangGraph)
   │     └─► LLM Gateway with Sequential Failover
-  │           (gemini-3.5-flash → lite → 3.6 → 3.7 → 3.8)
+  │           (gemini-2.5-flash → gemini-2.5-flash-lite → backup tiers)
   │           └─► Pedagogical Script (120-140 words, 5-8 scenes, 2-3 visual beats/scene)
   │
   ├─► Node 2: Asset Agent (asyncio.gather parallel branches)
@@ -25,9 +68,10 @@ User Topic Prompt (3-500 chars)
   │
   └─► Node 3: Assembly Agent (MoviePy + Subprocess FFmpeg Pipe)
         ├─► TimelineBuilder (word-boundary synchronized shot timing)
-        ├─► Motion Engine (Smoothstep Ken Burns, sub-pixel Lanczos, organic handheld drift)
+        ├─► Motion Engine (Smoothstep Ken Burns, sub-pixel Lanczos, organic drift)
+        ├─► Natural Transitions (S-curve smoothstep, zoom dissolve, light blooming)
         ├─► High-DPI Pillow Captions (2-4 word animated pop karaoke highlighting)
-        ├─► Overlays (Vignette, bottom readability scrim, emphasis badges, progress bar)
+        ├─► Overlays (Vignette, bottom readability scrim, chapter pill, progress bar)
         ├─► FFmpeg Subprocess (H.264 CRF 16, 48kHz AAC 192k)
         └─► ffprobe verification & 540x960 thumbnail generation
   │
@@ -42,100 +86,164 @@ Next.js 15 Frontend
 
 ---
 
-## 2. Key Guardrails & Non-Negotiable Rules
+## 📁 Repository Structure
 
-1. **NO MOCK DATA**: Zero `unittest.mock`, `pytest-mock`, `msw`, `faker`, or canned fixtures. Every test and workflow exercises real endpoints.
-2. **COMPLETE AUDIT LOGGING**: Every outbound HTTP/TTS call is captured under `logs/api_calls/<job_id>/` with `request.json`, `response.json`, `meta.json`, externalized binaries, and redacted API keys.
-3. **SECRETS LEAK GUARD**: `NEXT_PUBLIC_API_BASE_URL` is the only frontend env variable. Outbound SSE and REST payloads are validated by a deep regex sanitizer that strips keys, hostnames, and local paths.
-4. **FAIL-CLOSED AUDITING**: If audit log writing fails under `LOG_FAIL_CLOSED=true`, the call safely aborts with `AUDIT_LOG_FAILURE`.
+```
+├── backend/
+│   ├── app/
+│   │   ├── api/             # FastAPI REST endpoints (/api/jobs, /api/media)
+│   │   ├── core/            # Config, audit logger, exception handlers
+│   │   ├── domain/          # Pydantic domain models (Job, Scene, Timeline, Shot)
+│   │   ├── events/          # EventBus, SSE public contracts, payload sanitizer
+│   │   ├── gateway/         # Resilient LLM Gateway with sequential failover
+│   │   ├── graph/           # LangGraph pipeline nodes (Research, Asset, Assembly)
+│   │   ├── jobs/            # SQLite repository with WAL mode & atomic updates
+│   │   └── media/           # Timeline builder, motion engine, render worker, text rasterizer
+│   ├── tests/               # Real integration & verification tests (Phase 0 to 6)
+│   ├── requirements.txt     # Python dependencies
+│   └── pyproject.toml
+├── frontend/
+│   ├── src/
+│   │   ├── app/             # Next.js 15 App Router pages (Home, Job Details, Library)
+│   │   ├── components/      # UI components (Graph, Player, ActivityFeed, SceneStrip)
+│   │   └── lib/             # Zustand store, SSE client, API wrappers
+│   ├── tailwind.config.ts   # Glassmorphic warm dark palette & animations
+│   └── package.json
+├── docs/                    # Complete product specifications (PRD, Frontend & Backend Specs)
+├── logs/                    # Audit logs directory
+│   ├── runs.jsonl           # Append-only run registry
+│   └── api_calls/           # Per-job detailed audit trails & summary.md
+├── scripts/                 # System verification scripts
+│   ├── check_no_mocks.py    # Zero-mock scanner
+│   ├── check_secrets.py     # Secret leak scanner
+│   └── doctor.py            # Environment & dependency readiness verification
+└── README.md
+```
 
 ---
 
-## 3. Quick Start Guide
+## ⚡ Quick Start Guide
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 18+ & npm
-- FFmpeg and ffprobe installed and available on `PATH`
+- **Python 3.11+**
+- **Node.js 18+** & npm
+- **FFmpeg & ffprobe** installed and available on `PATH`
 
-### 1. Run System Doctor & Readiness Check
-Verify all system dependencies, fonts, FFmpeg, and directories:
-```powershell
-python scripts/doctor.py
+### 1. Clone the Repository
+```bash
+git clone https://github.com/pradnyeshpatil2007/WCC-Launchpad-Hackathon.git
+cd WCC-Launchpad-Hackathon
 ```
 
-### 2. Verify Guardrails & Leak Guards
-Ensure zero mocks and zero exposed secrets in the repository:
+### 2. Verify System Readiness & Guardrails
+Run the automated system doctor and leak scanners:
 ```powershell
+python scripts/doctor.py
 python scripts/check_no_mocks.py
 python scripts/check_secrets.py
 ```
 
-### 3. Backend Setup & Startup
-Configure API keys in `backend/.env`:
+### 3. Backend Setup
+Configure your API keys in `backend/.env`:
 ```ini
 GEMINI_API_KEY=your_gemini_api_key
 PEXELS_API_KEY=your_pexels_api_key
 PIXABAY_API_KEY=your_pixabay_api_key
+PORT=8000
+STORAGE_DIR=../storage
+LOGS_DIR=../logs
 ```
 
-Run database initialization and start the FastAPI dev server:
+Install dependencies and start the backend:
 ```powershell
-# From backend directory:
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+cd backend
+pip install -r requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-The backend automatically executes live preflight checks on startup, validating Gemini models, stock providers, and Edge-TTS connectivity.
+*The backend automatically performs live startup preflight checks against Gemini and stock providers.*
 
-### 4. Frontend Setup & Startup
+### 4. Frontend Setup
+In a separate terminal:
 ```powershell
-# From frontend directory:
+cd frontend
+npm install
 npm run dev
 ```
-Open `http://localhost:3000` to interact with the application.
+
+Open `http://localhost:3000` in your browser.
 
 ---
 
-## 4. Verification & Test Suite
+## 📡 REST & SSE API Contract
 
-AutoShorts contains real live verification tests across all phases:
-
-| Phase | Test File | Description |
+| Method | Endpoint | Description |
 |---|---|---|
-| **Phase 0 & 1** | `test_audit_log.py` | Live preflight probes, audit tree logging, secret masking, fail-closed enforcement |
-| **Phase 2** | `test_gateway.py` | 5-model sequential failover, real 404 recovery, exhaustion handling, auth validation |
-| **Phase 3** | `test_research.py` | 5 diverse topics, strict 120-140 word budget, schema validation, tighten feedback |
-| **Phase 4** | `test_asset.py` | Live parallel TTS & image sourcing, stock fallback, impossible query defense |
-| **Phase 5** | `test_assembly.py` | Full 1080x1920 video render, ffprobe quality checks, 540x960 thumbnail, contact sheet |
-| **Phase 6** | `test_api_and_pipeline.py` | REST API, SSE streaming replay, HTTP Range 206 seeking, job cancellation |
+| `POST` | `/api/jobs` | Submit a prompt to start video generation (`{"prompt": "..."}`) |
+| `GET` | `/api/jobs` | List recent video generation jobs |
+| `GET` | `/api/jobs/{id}` | Retrieve job state, stage, progress, and metadata |
+| `GET` | `/api/jobs/{id}/events` | Real-time SSE stream with `Last-Event-ID` auto-reconnect |
+| `DELETE` | `/api/jobs/{id}` | Cancel/delete job and purge disk assets |
+| `GET` | `/api/media/{id}/{file}` | Stream video (`HTTP 206 Partial Content`) or download assets |
 
-Run all tests:
+### Public SSE Event Types
+- `stage.started` / `stage.completed`: Top-level node state changes (`research`, `asset`, `assembly`).
+- `substep.progress`: Fine-grained frame-by-frame rendering percentage, FPS, and ETA.
+- `scene.voice_ready` / `scene.visual_ready`: Per-scene asset completion indicators.
+- `job.completed` / `job.failed`: Terminal states with final video URLs or error details.
+
+---
+
+## 🧪 Verification & Test Suite
+
+AutoShorts contains real live verification tests exercising every phase without mocks:
+
 ```powershell
+# Phase 0 & 1: Audit logging, secret masking, fail-closed enforcement
 pytest backend/tests/test_audit_log.py -v -s
+
+# Phase 2: LLM Gateway 5-model failover & recovery
 pytest backend/tests/test_gateway.py -v -s
-pytest backend/tests/test_api_and_pipeline.py -v -s
+
+# Phase 3: Research Agent word-budget adherence & script schemas
 pytest backend/tests/test_research.py -v -s
+
+# Phase 4: Parallel voice & visual asset sourcing
+pytest backend/tests/test_asset.py -v -s
+
+# Phase 5: Assembly engine, 1080x1920 render, and ffprobe verification
 pytest backend/tests/test_assembly.py -v -s
+
+# Phase 6: REST API, SSE replay, HTTP Range 206 seeking, job lifecycle
+pytest backend/tests/test_api_and_pipeline.py -v -s
 ```
 
-Frontend build validation:
+Frontend production build check:
 ```powershell
-npm --prefix frontend run build
+cd frontend && npm run build
 ```
 
 ---
 
-## 5. Judge Demo Walkthrough
+## 🏆 Judge Demo Walkthrough
 
-1. **Launch**: Open `http://localhost:3000`. Notice the warm dark aesthetic with glassmorphism panels.
-2. **Submit Topic**: Click one of the example chips (e.g. *"Why do neutron stars spin so fast?"*) or type your own concept and hit Enter.
-3. **Watch Agency Live**:
-   - The UI immediately transitions to `/jobs/<id>` in under 300ms.
-   - Watch the animated React Flow node graph highlight nodes in real-time as SSE events stream in.
-   - Observe parallel sub-nodes for Voice Narration and Visual Sourcing updating concurrently.
-   - Inspect the humanized Activity Feed displaying real-time progress without leaking system secrets.
-4. **Inspect Generated Video**:
-   - Review the completed 9:16 vertical video in the custom player with full seeking (HTTP Range 206 partial content delivery).
-   - Check the synchronized animated pop captions with yellow highlighting and smooth Ken Burns motion.
-   - Download the high-definition MP4.
-5. **Explore Library**: Navigate to `/library` to see all previously rendered projects, filter by status, replay, or delete.
-6. **Verify Transparency**: Open `logs/api_calls/<job_id>/` to inspect the complete audit log, request/response headers, and timing metrics for every single external API call.
+1. **Submit Topic**: On the homepage (`http://localhost:3000`), choose an educational topic or click one of the pre-loaded topic chips (e.g., *"Why do neutron stars spin so fast?"*).
+2. **Real-Time Agency Visualization**:
+   - The UI transitions instantly to `/jobs/<id>`.
+   - Observe the **React Flow** graph illuminate nodes as agents execute.
+   - Watch the parallel sub-nodes split between narration synthesis and visual generation.
+   - Review the clean **Activity Feed** logging humanized progress without exposing secrets or paths.
+3. **Smooth Progress Tracking**:
+   - Watch the golden gradient progress bar advance continuously across all sub-steps and frame rendering.
+4. **Playback Lock & Reveal**:
+   - Notice the player is securely locked during generation with a badge: `Generating video (player unlocks on completion)`.
+   - Upon completion (100%), the view automatically unlocks the full 9:16 player.
+5. **Inspect the Master Video**:
+   - Play the 1080x1920 vertical video with synchronized word-by-word karaoke captions, smooth Ken Burns camera motions, and organic scene transitions.
+6. **Audit Transparency**:
+   - Open `logs/runs.jsonl` or `logs/api_calls/<job_id>/summary.md` to inspect the exact external API calls, HTTP status codes, latency, and fallback paths used.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE). Built for the **WCC Launchpad 30 Hackathon (Agentic AI Track)**.
