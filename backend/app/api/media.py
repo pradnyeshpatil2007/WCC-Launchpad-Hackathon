@@ -38,6 +38,20 @@ def parse_range_header(range_header: str, file_size: int) -> Tuple[int, int]:
     return start, end
 
 
+@router.get("/{job_id}/scenes/{scene_index}/preview")
+async def get_scene_preview(job_id: str, scene_index: int):
+    """Serve scene storyboard preview JPEG with automatic fallback to beat image."""
+    settings = get_settings()
+    storage_dir = settings.resolved_media_dir / "jobs" / job_id
+    preview_file = (storage_dir / "previews" / f"s{scene_index:02d}.jpg").resolve()
+    if not preview_file.exists():
+        # Fallback to beat image if preview hasn't been written
+        preview_file = (storage_dir / "images" / f"s{scene_index:02d}_b00.jpg").resolve()
+    if not preview_file.exists() or not preview_file.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scene preview not yet available")
+    return FileResponse(path=preview_file, media_type="image/jpeg")
+
+
 @router.get("/{job_id}/{filename:path}")
 async def get_media_file(
     job_id: str,

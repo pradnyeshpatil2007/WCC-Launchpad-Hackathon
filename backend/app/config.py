@@ -65,8 +65,8 @@ class Settings(BaseSettings):
     VIDEO_MAX_SECONDS: float = 60.0
     VIDEO_LEAD_IN_SECONDS: float = 0.4
     VIDEO_TAIL_SECONDS: float = 0.6
-    VIDEO_PRESET: str = "slow"
-    VIDEO_CRF: int = 16
+    VIDEO_PRESET: str = "veryfast"
+    VIDEO_CRF: int = 18
     VIDEO_AUDIO_BITRATE: str = "192k"
     VIDEO_LOUDNESS_LUFS: float = -16.0
 

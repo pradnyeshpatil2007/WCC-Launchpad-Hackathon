@@ -44,7 +44,12 @@ def run_render_worker(
         master_w = int(timeline.width * 1.25)
         master_h = int(timeline.height * 1.25)
         master_images: Dict[int, Image.Image] = {}
+        loaded_file_cache: Dict[str, Image.Image] = {}
         for shot in timeline.shots:
+            if shot.image_file in loaded_file_cache:
+                master_images[shot.shot_index] = loaded_file_cache[shot.image_file]
+                continue
+
             img_p = job_dir / shot.image_file
             if img_p.exists():
                 try:
@@ -61,7 +66,9 @@ def run_render_worker(
                             crop_h = int(w / target_aspect)
                             top = (h - crop_h) // 2
                             cropped = raw_im.crop((0, top, w, top + crop_h))
-                        master_images[shot.shot_index] = cropped.resize((master_w, master_h), Image.LANCZOS)
+                        processed = cropped.resize((master_w, master_h), Image.LANCZOS)
+                        loaded_file_cache[shot.image_file] = processed
+                        master_images[shot.shot_index] = processed
                 except Exception:
                     master_images[shot.shot_index] = Image.new("RGB", (master_w, master_h), (20, 24, 30))
             else:
@@ -118,12 +125,14 @@ def run_render_worker(
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",
+            "-thread_queue_size", "128",
             "-f", "rawvideo",
             "-vcodec", "rawvideo",
             "-s", f"{timeline.width}x{timeline.height}",
             "-pix_fmt", "rgb24",
             "-r", str(timeline.fps),
             "-i", "-",  # Video from stdin pipe
+            "-thread_queue_size", "128",
             "-i", str(audio_path),  # Audio input
             "-c:v", "libx264",
             "-preset", settings.VIDEO_PRESET,
@@ -231,7 +240,8 @@ def run_render_worker(
                     card_alpha = min(1.0, max(0.0, min(t_rel / 0.22, rem / 0.25)))
                     if card_alpha < 0.98:
                         faded_c = c_card.copy()
-                        faded_c.putalpha(faded_c.getchannel("A").point(lambda p: int(p * card_alpha)))
+                        alpha_lut = [int(i * card_alpha) for i in range(256)]
+                        faded_c.putalpha(faded_c.getchannel("A").point(alpha_lut))
                         base_frame.paste(faded_c, (c_info.x, c_info.y), faded_c)
                     else:
                         base_frame.paste(c_card, (c_info.x, c_info.y), c_card)

@@ -79,7 +79,9 @@ export function PipelineNode({ data }: { data: PipelineNodeData }) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-[#FED766] !w-2.5 !h-2.5 !border-2 !border-[#0E1015]"
+        className={`!w-2.5 !h-2.5 !border-2 !border-[#0E1015] ${
+          isCompleted ? "!bg-[#10B981]" : isFailed ? "!bg-[#EF4444]" : "!bg-[#FED766]"
+        }`}
       />
 
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -116,15 +118,27 @@ export function PipelineNode({ data }: { data: PipelineNodeData }) {
 
       {data.badge && (
         <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-[#9CA3AF]">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#FED766]" />
-          <span>{data.badge}</span>
+          <span
+            className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
+              isCompleted
+                ? "bg-[#10B981] shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                : isFailed
+                ? "bg-[#EF4444]"
+                : isRunning
+                ? "bg-[#FED766] animate-pulse shadow-[0_0_8px_rgba(254,215,102,0.5)]"
+                : "bg-[#4B5563]"
+            }`}
+          />
+          <span className={isCompleted ? "text-[#E5E7EB] font-medium" : ""}>{data.badge}</span>
         </div>
       )}
 
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-[#FED766] !w-2.5 !h-2.5 !border-2 !border-[#0E1015]"
+        className={`!w-2.5 !h-2.5 !border-2 !border-[#0E1015] ${
+          isCompleted ? "!bg-[#10B981]" : isFailed ? "!bg-[#EF4444]" : "!bg-[#FED766]"
+        }`}
       />
     </div>
   );

@@ -170,10 +170,18 @@ export function PipelineGraph({ runState }: PipelineGraphProps) {
   ]);
 
   const edges: Edge[] = useMemo(() => {
-    const isResearchActive = researchStatus === "running" || researchStatus === "completed";
-    const isVoiceActive = voiceStatus === "running" || voiceStatus === "completed";
-    const isVisualsActive = visualsStatus === "running" || visualsStatus === "completed";
-    const isAssemblyActive = assemblyStatus === "running" || assemblyStatus === "completed";
+    const getEdgeColor = (sourceStatus: StageStatus, targetStatus: StageStatus) => {
+      if (sourceStatus === "completed" && targetStatus === "completed") return "#10B981";
+      if (sourceStatus === "completed" || targetStatus === "running") return "#FED766";
+      if (sourceStatus === "failed" || targetStatus === "failed") return "#EF4444";
+      return "#262B35";
+    };
+
+    const c1 = getEdgeColor(researchStatus, voiceStatus);
+    const c2 = getEdgeColor(researchStatus, visualsStatus);
+    const c3 = getEdgeColor(voiceStatus, assemblyStatus);
+    const c4 = getEdgeColor(visualsStatus, assemblyStatus);
+    const c5 = getEdgeColor(assemblyStatus, outputStatus);
 
     return [
       {
@@ -181,78 +189,56 @@ export function PipelineGraph({ runState }: PipelineGraphProps) {
         source: "research",
         target: "voice",
         animated: researchStatus === "running" || voiceStatus === "running",
-        style: {
-          stroke: isResearchActive ? "#FED766" : "#262B35",
-          strokeWidth: isResearchActive ? 2 : 1.5,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isResearchActive ? "#FED766" : "#262B35",
-        },
+        style: { stroke: c1, strokeWidth: c1 !== "#262B35" ? 2 : 1.5 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: c1 },
       },
       {
         id: "e-research-visuals",
         source: "research",
         target: "visuals",
         animated: researchStatus === "running" || visualsStatus === "running",
-        style: {
-          stroke: isResearchActive ? "#FED766" : "#262B35",
-          strokeWidth: isResearchActive ? 2 : 1.5,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isResearchActive ? "#FED766" : "#262B35",
-        },
+        style: { stroke: c2, strokeWidth: c2 !== "#262B35" ? 2 : 1.5 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: c2 },
       },
       {
         id: "e-voice-assembly",
         source: "voice",
         target: "assembly",
         animated: voiceStatus === "running" || assemblyStatus === "running",
-        style: {
-          stroke: isVoiceActive ? "#FED766" : "#262B35",
-          strokeWidth: isVoiceActive ? 2 : 1.5,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isVoiceActive ? "#FED766" : "#262B35",
-        },
+        style: { stroke: c3, strokeWidth: c3 !== "#262B35" ? 2 : 1.5 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: c3 },
       },
       {
         id: "e-visuals-assembly",
         source: "visuals",
         target: "assembly",
         animated: visualsStatus === "running" || assemblyStatus === "running",
-        style: {
-          stroke: isVisualsActive ? "#FED766" : "#262B35",
-          strokeWidth: isVisualsActive ? 2 : 1.5,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isVisualsActive ? "#FED766" : "#262B35",
-        },
+        style: { stroke: c4, strokeWidth: c4 !== "#262B35" ? 2 : 1.5 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: c4 },
       },
       {
         id: "e-assembly-output",
         source: "assembly",
         target: "output",
-        animated: assemblyStatus === "running" || isComplete,
-        style: {
-          stroke: isAssemblyActive ? "#FED766" : "#262B35",
-          strokeWidth: isAssemblyActive ? 2 : 1.5,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isAssemblyActive ? "#FED766" : "#262B35",
-        },
+        animated: assemblyStatus === "running" || (outputStatus === "running" && !isComplete),
+        style: { stroke: c5, strokeWidth: c5 !== "#262B35" ? 2 : 1.5 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: c5 },
       },
     ];
-  }, [researchStatus, voiceStatus, visualsStatus, assemblyStatus, isComplete]);
+  }, [researchStatus, voiceStatus, visualsStatus, assemblyStatus, outputStatus, isComplete]);
 
   return (
     <div className="w-full h-[580px] rounded-2xl glass-panel relative overflow-hidden border border-white/5">
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 backdrop-blur-md">
-        <span className="w-2 h-2 rounded-full bg-[#FED766] animate-pulse" />
+        <span
+          className={`w-2 h-2 rounded-full ${
+            isComplete
+              ? "bg-[#10B981] shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+              : isFailed
+              ? "bg-[#EF4444]"
+              : "bg-[#FED766] animate-pulse"
+          }`}
+        />
         <span className="text-xs font-medium text-white/90">Multi-Agent LangGraph Pipeline</span>
       </div>
 
@@ -270,7 +256,10 @@ export function PipelineGraph({ runState }: PipelineGraphProps) {
         className="bg-transparent"
       >
         <Background color="#262B35" gap={20} size={1} />
-        <Controls showInteractive={false} className="!bg-[#161922] !border-[#262B35] !rounded-lg" />
+        <Controls
+          showInteractive={false}
+          className="!bg-[#141824] !border !border-[#262B35] !rounded-xl !overflow-hidden !shadow-2xl [&>button]:!bg-[#161922] [&>button]:!border-b [&>button]:!border-[#262B35] [&>button]:!fill-[#9CA3AF] hover:[&>button]:!bg-[#222836] hover:[&>button]:!fill-[#FED766] [&>button:last-child]:!border-b-0"
+        />
       </ReactFlow>
     </div>
   );

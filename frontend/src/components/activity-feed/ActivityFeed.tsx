@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import { ActivityMessage } from "@/lib/types";
-import { Info, CheckCircle2, AlertTriangle, AlertCircle, Radio } from "lucide-react";
+import { Info, CheckCircle2, AlertTriangle, AlertCircle } from "lucide-react";
 
 interface ActivityFeedProps {
   messages: ActivityMessage[];
@@ -15,13 +15,26 @@ export function ActivityFeed({ messages, connected }: ActivityFeedProps) {
   const getBadge = (type: ActivityMessage["type"]) => {
     switch (type) {
       case "success":
-        return <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981] shrink-0 mt-0.5" />;
+        return <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0 mt-0.5" />;
       case "warning":
-        return <AlertTriangle className="w-3.5 h-3.5 text-[#F59E0B] shrink-0 mt-0.5" />;
+        return <AlertTriangle className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />;
       case "error":
-        return <AlertCircle className="w-3.5 h-3.5 text-[#EF4444] shrink-0 mt-0.5" />;
+        return <AlertCircle className="w-4 h-4 text-[#EF4444] shrink-0 mt-0.5" />;
       default:
-        return <Info className="w-3.5 h-3.5 text-[#FED766] shrink-0 mt-0.5" />;
+        return <Info className="w-4 h-4 text-[#FED766] shrink-0 mt-0.5" />;
+    }
+  };
+
+  const getStageColor = (type: ActivityMessage["type"]) => {
+    switch (type) {
+      case "success":
+        return "text-[#10B981]";
+      case "error":
+        return "text-[#EF4444]";
+      case "warning":
+        return "text-[#F59E0B]";
+      default:
+        return "text-[#FED766]";
     }
   };
 
@@ -65,25 +78,43 @@ export function ActivityFeed({ messages, connected }: ActivityFeedProps) {
             Waiting for pipeline events...
           </div>
         ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className="p-2.5 rounded-xl glass-card border border-white/[0.04] hover:border-white/10 transition-colors flex items-start gap-2.5"
-            >
-              {getBadge(m.type)}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-[10px] font-semibold text-[#FED766] uppercase tracking-wider">
-                    {m.stage}
-                  </span>
-                  <span className="text-[10px] text-[#6B7280] font-mono">
-                    {formatTime(m.timestamp)}
-                  </span>
+          messages.map((m) => {
+            const isCompleted = m.type === "success";
+            return (
+              <div
+                key={m.id}
+                className={`p-2.5 rounded-xl glass-card border transition-all flex items-start gap-2.5 ${
+                  isCompleted
+                    ? "border-[#10B981]/25 bg-[#10B981]/[0.04] hover:border-[#10B981]/40"
+                    : m.type === "error"
+                    ? "border-[#EF4444]/30 bg-[#EF4444]/[0.05]"
+                    : m.type === "warning"
+                    ? "border-[#F59E0B]/25 bg-[#F59E0B]/[0.04]"
+                    : "border-white/[0.04] hover:border-white/10"
+                }`}
+              >
+                {getBadge(m.type)}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider ${getStageColor(m.type)}`}>
+                        {m.stage}
+                      </span>
+                      {isCompleted && (
+                        <span className="text-[9px] font-medium px-1.5 py-0.2 rounded-full bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30">
+                          Done
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-[#6B7280] font-mono">
+                      {formatTime(m.timestamp)}
+                    </span>
+                  </div>
+                  <p className="text-[#D1D5DB] leading-relaxed break-words">{m.message}</p>
                 </div>
-                <p className="text-[#D1D5DB] leading-relaxed break-words">{m.message}</p>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

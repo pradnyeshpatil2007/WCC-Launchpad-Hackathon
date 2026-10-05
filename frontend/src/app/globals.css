@@ -102,3 +102,35 @@ body {
   background-size: 20px 20px;
   animation: progress-stripe 1.2s linear infinite;
 }
+
+/* React Flow Dark Controls - Overriding browser default stark white buttons */
+.react-flow__controls {
+  background: #141824 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+}
+
+.react-flow__controls-button {
+  background: #161922 !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  fill: #9ca3af !important;
+  color: #9ca3af !important;
+  transition: all 0.15s ease !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #222836 !important;
+  fill: #fed766 !important;
+  color: #fed766 !important;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}

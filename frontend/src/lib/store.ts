@@ -125,12 +125,27 @@ export const useJobStore = create<JobStore>((set) => ({
         message: string,
         type: ActivityMessage["type"] = "info"
       ) => {
+        let finalType = type;
+        if (type === "info" || type === "progress") {
+          const lower = message.toLowerCase();
+          if (
+            lower.includes("completed") ||
+            lower.includes("ready") ||
+            lower.includes("acquired") ||
+            lower.includes("validated") ||
+            lower.includes("success") ||
+            lower.includes("finished") ||
+            lower.includes("drafted")
+          ) {
+            finalType = "success";
+          }
+        }
         const msg: ActivityMessage = {
           id: `ev-${eventId}-${Date.now()}`,
           timestamp: Date.now(),
           stage,
           message,
-          type,
+          type: finalType,
         };
         rs.activityFeed = [msg, ...rs.activityFeed].slice(0, 100);
       };
@@ -223,6 +238,9 @@ export const useJobStore = create<JobStore>((set) => ({
         }
 
         case "substep.completed": {
+          if (data.message) {
+            addFeedMessage(data.node || rs.currentStage, data.message, "success");
+          }
           break;
         }
 
@@ -259,7 +277,7 @@ export const useJobStore = create<JobStore>((set) => ({
           addFeedMessage(
             "voice",
             `Scene ${idx + 1} voice narration ready (${data.durationSec.toFixed(1)}s)`,
-            "info"
+            "success"
           );
           break;
         }
@@ -282,7 +300,7 @@ export const useJobStore = create<JobStore>((set) => ({
           addFeedMessage(
             "visuals",
             `Scene ${idx + 1} visual asset acquired (${data.source}, ${data.imageCount} image${data.imageCount > 1 ? "s" : ""})`,
-            "info"
+            "success"
           );
           break;
         }

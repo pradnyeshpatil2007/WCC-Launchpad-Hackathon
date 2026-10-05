@@ -124,23 +124,27 @@ def evaluate_and_process_image(
     cropped = smart_cover_crop_9_16(im, focal)
     cw, ch = cropped.size
 
-    # Check minimum crop resolution (>= 720x1280, ideally >= 900x1600)
-    if cw < 640 or ch < 1138:
-        return ImageEvaluationResult(False, reason=f"Cropped resolution too low: {cw}x{ch}")
+    # Check minimum crop resolution (allow AI generated 576x1024 / 720x1280 to pass)
+    min_w = 480 if source in ("generated", "pollinations") else 640
+    min_h = 850 if source in ("generated", "pollinations") else 1130
+    if cw < min_w or ch < min_h:
+        return ImageEvaluationResult(False, reason=f"Cropped resolution too low: {cw}x{ch} (min {min_w}x{min_h})")
 
     # 5. Upscale limit check
-    max_upscale = 1.5 if source == "pixabay" else 1.8
+    max_upscale = 2.0 if source in ("generated", "pollinations") else (1.5 if source == "pixabay" else 1.8)
     scale_w = 1080.0 / cw
     scale_h = 1920.0 / ch
     scale_req = max(scale_w, scale_h)
     if scale_req > max_upscale:
         return ImageEvaluationResult(False, reason=f"Requires {scale_req:.2f}x upscale, exceeding {max_upscale}x limit")
 
-    # If below 1080x1920, perform high-quality Lanczos resize to standard 1080x1920
+    # Normalize image dimensions to prevent memory exhaustion and ensure high-DPI quality
     if cw < 1080 or ch < 1920:
         final_im = cropped.resize((1080, 1920), Image.LANCZOS)
-        # Apply subtle unsharp mask
         final_im = final_im.filter(ImageFilter.UnsharpMask(radius=1.2, percent=80, threshold=3))
+    elif cw > 1350 or ch > 2400:
+        # Downscale massive camera RAW photos (e.g. 6768x12032 from stock) to master 1.25x motion size
+        final_im = cropped.resize((1350, 2400), Image.LANCZOS)
     else:
         final_im = cropped
 
